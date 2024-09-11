@@ -5,112 +5,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>API Request Field Checker</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f0f0f0;
-        }
-
-        textarea,
-        input,
-        button {
-            width: 100%;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            font-size: 16px;
-        }
-
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        #params {
-            margin-top: 20px;
-            background-color: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .param-input {
-            display: flex;
-            margin-bottom: 10px;
-        }
-
-        .param-input input {
-            flex: 1;
-            margin-right: 5px;
-        }
-
-        #clearButton {
-            margin-left: 10px;
-            background-color: #dc3545;
-        }
-
-        #clearButton:hover {
-            background-color: #bd2130;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(0,0,0,0.3);
-            border-radius: 50%;
-            border-top-color: #007bff;
-            animation: spin 1s ease-in-out infinite;
-            margin-left: 10px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
 </head>
 
-<body>
-    <h1>API Request Field Checker</h1>
-    <textarea id="curlInput" rows="5" placeholder="Enter your curl command here"></textarea>
-    <button onclick="parseAndSend()">Parse and Send</button>
-    <button id="clearButton" onclick="clearAll()">Clear All</button>
-    
-    <details id="paramsDetails">
-        <summary>Request Parameters</summary>
-        <div id="params"></div>
-    </details>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-3xl font-bold mb-6">API Request Field Checker</h1>
+        
+        <!-- Move OpenAI API Key input to the top -->
+        <div class="mb-4">
+            <label for="apiKeyInput" class="block mb-2 font-bold">OpenAI API Key:</label>
+            <input type="password" id="apiKeyInput" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Enter your OpenAI API key">
+        </div>
 
-    <h2>Results:</h2>
-    <details id="resultsDetails">
-        <summary>Click to expand/collapse results</summary>
-        <pre id="results"></pre>
-    </details>
+        <label for="curlInput" class="block mb-2 font-bold">Curl Command:</label>
+        <textarea id="curlInput" rows="5" class="w-full mb-4 p-2 border border-gray-300 rounded-lg" placeholder="Enter your curl command here"></textarea>
+        <div class="flex mb-4">
+            <button onclick="parseAndSend()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mr-2">Parse and Send</button>
+            <button id="clearButton" onclick="clearAll()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Clear All</button>
+        </div>
+        
+        <details id="paramsDetails" class="mb-6">
+            <summary class="cursor-pointer">Request Parameters</summary>
+            <div id="params" class="mt-4"></div>
+        </details>
 
-    <div id="aiChat">
-        <h2>AI Chat</h2>
-        <div id="chatMessages"></div>
-        <input type="password" id="apiKeyInput" placeholder="Enter your OpenAI API key">
-        <input type="text" id="fieldsToValidateInput" placeholder="Enter field to validate (e.g. attributes)">
-        <input type="text" id="validationCodeInput" placeholder="Enter validation codes (comma-separated)">
-        <textarea id="userInput" placeholder="Selected content will appear here. You can also enter your question or instruction"></textarea>
-        <button onclick="initializeChat()">Start AI Analysis</button>
-    </div>
-    <div id="validationResults" style="display: none;">
-        <h2>Validation Results</h2>
-        <div id="loadingIndicator" style="display: none;">Loading...</div>
-        <table id="resultsTable"></table>
+        <h2 class="text-2xl font-bold mb-4">Results:</h2>
+        <details id="resultsDetails" class="mb-6">
+            <summary class="cursor-pointer">Click to expand/collapse results</summary>
+            <pre id="results" class="mt-4 bg-white p-4 rounded-lg shadow overflow-auto"></pre>
+        </details>
+
+        <div id="aiChat" class="mb-6">
+            <h2 class="text-2xl font-bold mb-4">AI Chat</h2>
+            <div id="chatMessages" class="mb-4"></div>
+            <div class="mb-4">
+                <label for="fieldsToValidateInput" class="block mb-2 font-bold">Field to Validate:</label>
+                <input type="text" id="fieldsToValidateInput" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Enter field to validate (e.g. attributes)">
+            </div>
+            <div class="mb-4">
+                <label for="validationCodeInput" class="block mb-2 font-bold">Validation Codes:</label>
+                <input type="text" id="validationCodeInput" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Enter validation codes (comma-separated)">
+            </div>
+            <div class="mb-4">
+                <label for="userInput" class="block mb-2 font-bold">Selected Content or Question:</label>
+                <textarea id="userInput" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Selected content from the `Results` above will appear here. You can also enter your question or instruction"></textarea>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="generateAIFilter()" id="generateFilterBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Generate AI Filter</button>
+                <button onclick="executeComparison()" id="executeComparisonBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded" disabled>Execute Comparison</button>
+            </div>
+        </div>
+        <div id="validationResults" class="hidden">
+            <h2 class="text-2xl font-bold mb-4">Validation Results</h2>
+            <div id="loadingIndicator" class="hidden">Loading...</div>
+            <table id="resultsTable" class="w-full border-collapse border border-gray-300"></table>
+        </div>
     </div>
 
     <script>
@@ -312,7 +263,10 @@
             document.getElementById('userInput').value = selectedContent;
         }
 
-        async function initializeChat() {
+        let aiFilterGenerated = false;
+        let generatedCompareFunction = null;
+
+        async function generateAIFilter() {
             const apiKey = document.getElementById('apiKeyInput').value.trim();
             const userInput = document.getElementById('userInput').value.trim();
             const fieldsToValidate = document.getElementById('fieldsToValidateInput').value.trim();
@@ -336,9 +290,9 @@
             // Show loading indicator
             document.getElementById('loadingIndicator').style.display = 'block';
 
-            const startButton = document.querySelector('#aiChat button');
-            startButton.innerHTML = 'Analyzing... <span class="loading"></span>';
-            startButton.disabled = true;
+            const generateFilterBtn = document.getElementById('generateFilterBtn');
+            generateFilterBtn.innerHTML = 'Generating... <span class="loading"></span>';
+            generateFilterBtn.disabled = true;
 
             try {
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -386,17 +340,26 @@ Provide the comparison function as a string in your response. The function shoul
                     throw new Error(result.error.message);
                 }
                 const aiSuggestions = JSON.parse(result.choices[0].message.content);
+                
+                // Clear previous AI chat content
+                document.getElementById('chatMessages').innerHTML = '';
+                
                 displayMessage(JSON.stringify(aiSuggestions, null, 2), 'ai');
-                performValidation(aiSuggestions, data, fieldsToValidate, validationCodeArray);
+                
+                // Store the generated comparison function
+                generatedCompareFunction = eval(aiSuggestions.compareIds);
 
-                startButton.innerHTML = 'Start AI Analysis';
-                startButton.disabled = false;
+                aiFilterGenerated = true;
+                document.getElementById('executeComparisonBtn').disabled = false;
+
+                generateFilterBtn.innerHTML = 'Generate AI Filter';
+                generateFilterBtn.disabled = false;
             } catch (error) {
                 alert(`Error calling OpenAI API: ${error.message}`);
                 console.error('Error:', error);
 
-                startButton.innerHTML = 'Start AI Analysis';
-                startButton.disabled = false;
+                generateFilterBtn.innerHTML = 'Generate AI Filter';
+                generateFilterBtn.disabled = false;
             }
         }
 
@@ -417,18 +380,56 @@ Provide the comparison function as a string in your response. The function shoul
             return true;
         }
 
+        async function executeComparison() {
+            if (!aiFilterGenerated) {
+                alert('Please generate AI filter first.');
+                return;
+            }
 
-        async function performValidation(aiSuggestions, data, fieldsToValidate, validationCodeArray) {
-            const validationResults = {};
-            const originalUrl = new URL(document.getElementById('curlInput').value.match(/"([^"]+)"/)[1]);
-            let compareFunction;
+            const executeComparisonBtn = document.getElementById('executeComparisonBtn');
+            executeComparisonBtn.innerHTML = 'Executing... <span class="loading"></span>';
+            executeComparisonBtn.disabled = true;
+
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const userInput = document.getElementById('userInput').value.trim();
+            const fieldsToValidate = document.getElementById('fieldsToValidateInput').value.trim();
+            const validationCode = document.getElementById('validationCodeInput').value.trim();
+            if (!apiKey || !userInput || !fieldsToValidate || !validationCode) {
+                alert('Please fill in all required fields and select content from the results.');
+                return;
+            }
+
+            localStorage.setItem('openaiApiKey', apiKey);
+            localStorage.setItem('fieldsToValidate', fieldsToValidate);
+            localStorage.setItem('validationCode', validationCode);
+
+            const data = JSON.parse(document.getElementById('results').textContent);
+            const context = JSON.stringify(data);
+            const validationCodeArray = validationCode.split(',').map(item => item.trim());
+
+            // Clear previous validation results
+            clearValidationResults();
+
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
 
             try {
-                compareFunction = eval(aiSuggestions.compareIds);
+                await performValidation(generatedCompareFunction, data, fieldsToValidate, validationCodeArray);
+
+                executeComparisonBtn.innerHTML = 'Execute Comparison';
+                executeComparisonBtn.disabled = false;
             } catch (error) {
-                console.error('Error creating comparison function from AI suggestions:', error);
-                compareFunction = compareIds;
+                alert(`Error executing comparison: ${error.message}`);
+                console.error('Error:', error);
+
+                executeComparisonBtn.innerHTML = 'Execute Comparison';
+                executeComparisonBtn.disabled = false;
             }
+        }
+
+        async function performValidation(compareFunction, data, fieldsToValidate, validationCodeArray) {
+            const validationResults = {};
+            const originalUrl = new URL(document.getElementById('curlInput').value.match(/"([^"]+)"/)[1]);
 
             const loadingIndicator = document.getElementById('loadingIndicator');
             loadingIndicator.innerHTML = 'Validating... <span class="loading"></span>';
