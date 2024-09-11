@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Request Field Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        textarea,
+        input,
+        button {
+            width: 100%;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #params {
+            margin-top: 20px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .param-input {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .param-input input {
+            flex: 1;
+            margin-right: 5px;
+        }
+
+        #clearButton {
+            margin-left: 10px;
+            background-color: #dc3545;
+        }
+
+        #clearButton:hover {
+            background-color: #bd2130;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+            border-top-color: #007bff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>API Request Field Checker</h1>
+    <textarea id="curlInput" rows="5" placeholder="Enter your curl command here"></textarea>
+    <button onclick="parseAndSend()">Parse and Send</button>
+    <button id="clearButton" onclick="clearAll()">Clear All</button>
+    
+    <details id="paramsDetails">
+        <summary>Request Parameters</summary>
+        <div id="params"></div>
+    </details>
+
+    <h2>Results:</h2>
+    <details id="resultsDetails">
+        <summary>Click to expand/collapse results</summary>
+        <pre id="results"></pre>
+    </details>
+
+    <div id="aiChat">
+        <h2>AI Chat</h2>
+        <div id="chatMessages"></div>
+        <input type="password" id="apiKeyInput" placeholder="Enter your OpenAI API key">
+        <input type="text" id="fieldsToValidateInput" placeholder="Enter field to validate (e.g. attributes)">
+        <input type="text" id="validationCodeInput" placeholder="Enter validation codes (comma-separated)">
+        <textarea id="userInput" placeholder="Selected content will appear here. You can also enter your question or instruction"></textarea>
+        <button onclick="initializeChat()">Start AI Analysis</button>
+    </div>
+    <div id="validationResults" style="display: none;">
+        <h2>Validation Results</h2>
+        <div id="loadingIndicator" style="display: none;">Loading...</div>
+        <table id="resultsTable"></table>
+    </div>
+
+    <script>
+        // 页面加载时恢复保存的数据
+        window.onload = function () {
+            const savedCurl = localStorage.getItem('curlCommand');
+            if (savedCurl) {
+                document.getElementById('curlInput').value = savedCurl;
+                parseAndSend();
+            }
+
+            const savedApiKey = localStorage.getItem('openaiApiKey');
+            if (savedApiKey) {
+                document.getElementById('apiKeyInput').value = savedApiKey;
+            }
+
+            const savedFieldsToValidate = localStorage.getItem('fieldsToValidate');
+            if (savedFieldsToValidate) {
+                document.getElementById('fieldsToValidateInput').value = savedFieldsToValidate;
+            }
+
+            const savedValidationCode = localStorage.getItem('validationCode');
+            if (savedValidationCode) {
+                document.getElementById('validationCodeInput').value = savedValidationCode;
+            }
+        }
+
+        function parseAndSend() {
+            const curlInput = document.getElementById('curlInput').value;
+            localStorage.setItem('curlCommand', curlInput);  // 保存curl命令
+
+            const paramsDiv = document.getElementById('params');
+            paramsDiv.innerHTML = '';
+
+            // Parse the curl command
+            const urlMatch = curlInput.match(/"([^"]+)"/);
+            if (!urlMatch) {
+                alert('Invalid curl command. Please ensure the URL is enclosed in double quotes.');
+                return;
+            }
+
+            let url = new URL(urlMatch[1]);
+            let params = new URLSearchParams(url.search);
+            let headers = {};
+
+            // Parse headers
+            const headerMatches = curlInput.matchAll(/-H "([^:]+): ([^"]+)"/g);
+            for (const match of headerMatches) {
+                headers[match[1]] = match[2];
+            }
+
+            // Create input fields for URL parameters
+            for (let [key, value] of params) {
+                createParamInput(paramsDiv, 'param', key, value);
+            }
+
+            // Create input fields for headers
+            for (let [key, value] of Object.entries(headers)) {
+                createParamInput(paramsDiv, 'header', key, value);
+            }
+
+            // Add a button to send the request
+            const sendButton = document.createElement('button');
+            sendButton.textContent = 'Send Request';
+            sendButton.onclick = sendRequest;
+            paramsDiv.appendChild(sendButton);
+
+            // Open the params details after parsing
+            document.getElementById('paramsDetails').open = true;
+        }
+
+        function createParamInput(container, type, key, value) {
+            const paramDiv = document.createElement('div');
+            paramDiv.className = 'param-input';
+            const inputId = `${type}-${key}`;
+            paramDiv.innerHTML = `
+                <input type="text" value="${key}" readonly>
+                <input type="text" value="${value}" id="${inputId}">
+            `;
+            container.appendChild(paramDiv);
+
+            // 恢复保存的值
+            const savedValue = localStorage.getItem(inputId);
+            if (savedValue) {
+                document.getElementById(inputId).value = savedValue;
+            }
+
+            // 添加事件监听器以保存更改
+            document.getElementById(inputId).addEventListener('change', function () {
+                localStorage.setItem(inputId, this.value);
+            });
+        }
+
+        async function sendRequest() {
+            const curlInput = document.getElementById('curlInput').value;
+            const urlMatch = curlInput.match(/"([^"]+)"/);
+            if (!urlMatch) return;
+
+            let url = new URL(urlMatch[1]);
+            let params = new URLSearchParams(url.search);
+            let headers = {};
+
+            // Update URL parameters
+            for (let [key, value] of params) {
+                const inputValue = document.getElementById(`param-${key}`).value;
+                params.set(key, inputValue);
+            }
+
+            // Update headers
+            const headerMatches = curlInput.matchAll(/-H "([^:]+): ([^"]+)"/g);
+            for (const match of headerMatches) {
+                const key = match[1];
+                const inputValue = document.getElementById(`header-${key}`)?.value || match[2];
+                headers[key] = inputValue;
+            }
+
+            url.search = params.toString();
+
+            // 使用 CORS Anywhere 代理
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+            const fullUrl = proxyUrl + url.toString();
+
+            const sendButton = document.querySelector('#params button');
+            sendButton.innerHTML = 'Sending... <span class="loading"></span>';
+            sendButton.disabled = true;
+
+            try {
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    headers: headers,
+                });
+                const data = await response.json();
+                displayResults(data);
+                document.getElementById('resultsDetails').open = true; // Auto-expand results
+
+                // Show AI chat
+                document.getElementById('aiChat').style.display = 'block';
+                document.getElementById('apiKeyInput').value = localStorage.getItem('openaiApiKey') || '';
+
+                sendButton.innerHTML = 'Send Request';
+                sendButton.disabled = false;
+            } catch (error) {
+                document.getElementById('results').textContent = `Error: ${error.message}`;
+                console.error('Error:', error);
+
+                sendButton.innerHTML = 'Send Request';
+                sendButton.disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            const resultsElement = document.getElementById('results');
+            resultsElement.innerHTML = '';
+            
+            function createInteractiveSpan(content) {
+                const span = document.createElement('span');
+                span.textContent = content;
+                span.style.cursor = 'pointer';
+                span.onclick = function() {
+                    this.style.backgroundColor = this.style.backgroundColor ? '' : 'yellow';
+                    updateUserInput();
+                };
+                return span;
+            }
+
+            function renderJSON(obj, indent = 0) {
+                let result = '';
+                if (typeof obj === 'object' && obj !== null) {
+                    const isArray = Array.isArray(obj);
+                    result += isArray ? '[\n' : '{\n';
+                    for (const [key, value] of Object.entries(obj)) {
+                        result += ' '.repeat(indent + 2);
+                        if (!isArray) {
+                            result += `"${key}": `;
+                        }
+                        result += renderJSON(value, indent + 2);
+                        if (Object.entries(obj).pop()[0] !== key) {
+                            result += ',';
+                        }
+                        result += '\n';
+                    }
+                    result += ' '.repeat(indent) + (isArray ? ']' : '}');
+                } else {
+                    result = JSON.stringify(obj);
+                }
+                return result;
+            }
+
+            const jsonString = renderJSON(data);
+            const lines = jsonString.split('\n');
+            lines.forEach(line => {
+                const lineSpan = createInteractiveSpan(line);
+                resultsElement.appendChild(lineSpan);
+                resultsElement.appendChild(document.createElement('br'));
+            });
+        }
+
+        function updateUserInput() {
+            const selectedContent = Array.from(document.querySelectorAll('#results span[style*="background-color: yellow"]'))
+                .map(span => span.textContent.trim())
+                .join('\n');
+            document.getElementById('userInput').value = selectedContent;
+        }
+
+        async function initializeChat() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const userInput = document.getElementById('userInput').value.trim();
+            const fieldsToValidate = document.getElementById('fieldsToValidateInput').value.trim();
+            const validationCode = document.getElementById('validationCodeInput').value.trim();
+            if (!apiKey || !userInput || !fieldsToValidate || !validationCode) {
+                alert('Please fill in all required fields and select content from the results.');
+                return;
+            }
+
+            localStorage.setItem('openaiApiKey', apiKey);
+            localStorage.setItem('fieldsToValidate', fieldsToValidate);
+            localStorage.setItem('validationCode', validationCode);
+
+            const data = JSON.parse(document.getElementById('results').textContent);
+            const context = JSON.stringify(data);
+            const validationCodeArray = validationCode.split(',').map(item => item.trim());
+
+            // Clear previous validation results
+            clearValidationResults();
+
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+
+            const startButton = document.querySelector('#aiChat button');
+            startButton.innerHTML = 'Analyzing... <span class="loading"></span>';
+            startButton.disabled = true;
+
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-3.5-turbo-0125",
+                        response_format: { "type": "json_object" },
+                        messages: [
+                            { role: "user", content: `Create a comparison function similar to the following example:
+
+(oldData, newData) => {
+    const oldIds = oldData.data.businesses.map(business => business.id);
+    const newIds = newData.data.businesses.map(business => business.id);
+
+    if (oldIds.length !== newIds.length) {
+        return false;
+    }
+
+    for (let i = 0; i < oldIds.length; i++) {
+        if (oldIds[i] !== newIds[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+The function should compare the '${userInput}' fields of businesses in the API responses. Use the following selected content as a reference for the structure of the data:
+
+${userInput}
+
+Full API response for context:
+${context}
+
+Provide the comparison function as a string in your response. The function should be named 'compareIds' and take two parameters: 'oldData' and 'newData'.` }
+                        ]
+                    })
+                });
+
+                const result = await response.json();
+                if (result.error) {
+                    throw new Error(result.error.message);
+                }
+                const aiSuggestions = JSON.parse(result.choices[0].message.content);
+                displayMessage(JSON.stringify(aiSuggestions, null, 2), 'ai');
+                performValidation(aiSuggestions, data, fieldsToValidate, validationCodeArray);
+
+                startButton.innerHTML = 'Start AI Analysis';
+                startButton.disabled = false;
+            } catch (error) {
+                alert(`Error calling OpenAI API: ${error.message}`);
+                console.error('Error:', error);
+
+                startButton.innerHTML = 'Start AI Analysis';
+                startButton.disabled = false;
+            }
+        }
+
+        function compareIds(oldData, newData) {
+            const oldIds = oldData.data.businesses.map(business => business.id);
+            const newIds = newData.data.businesses.map(business => business.id);
+
+            if (oldIds.length !== newIds.length) {
+                return false;
+            }
+
+            for (let i = 0; i < oldIds.length; i++) {
+                if (oldIds[i] !== newIds[i]) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+
+        async function performValidation(aiSuggestions, data, fieldsToValidate, validationCodeArray) {
+            const validationResults = {};
+            const originalUrl = new URL(document.getElementById('curlInput').value.match(/"([^"]+)"/)[1]);
+            let compareFunction;
+
+            try {
+                compareFunction = eval(aiSuggestions.compareIds);
+            } catch (error) {
+                console.error('Error creating comparison function from AI suggestions:', error);
+                compareFunction = compareIds;
+            }
+
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            loadingIndicator.innerHTML = 'Validating... <span class="loading"></span>';
+            loadingIndicator.style.display = 'block';
+
+            for (const replacementField of validationCodeArray) {
+                const modifiedUrl = new URL(originalUrl.toString());
+                modifiedUrl.searchParams.set(fieldsToValidate, replacementField);
+
+                try {
+                    const response = await fetch('https://cors-anywhere.herokuapp.com/' + modifiedUrl.toString(), {
+                        method: 'GET',
+                        headers: getHeaders(),
+                    });
+                    const modifiedData = await response.json();
+
+                    let result;
+                    try {
+                        result = compareFunction(data, modifiedData) == false ? 'Filter Effective' : 'No Change';
+                    } catch (error) {
+                        console.error('Error using AI-suggested comparison function, falling back to compareIds:', error);
+                        result = compareIds(data, modifiedData) == false ? 'Filter Effective' : 'No Change';
+                    }
+
+                    validationResults[replacementField] = {
+                        value: JSON.stringify(replacementField),
+                        result: result,
+                    };
+                } catch (error) {
+                    console.error('Error fetching modified data:', error);
+                    validationResults[replacementField] = {
+                        value: JSON.stringify(replacementField),
+                        result: 'Error',
+                    };
+                }
+            }
+
+            loadingIndicator.style.display = 'none';
+            showValidationResults(validationResults);
+        }
+
+        // Helper function to get headers from the curl command
+        function getHeaders() {
+            const curlInput = document.getElementById('curlInput').value;
+            const headers = {};
+            const headerMatches = curlInput.matchAll(/-H "([^:]+): ([^"]+)"/g);
+            for (const match of headerMatches) {
+                headers[match[1]] = match[2];
+            }
+            return headers;
+        }
+
+        function displayMessage(message, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageElement = document.createElement('p');
+            messageElement.textContent = `${sender}: ${message}`;
+            chatMessages.appendChild(messageElement);
+        }
+
+        function showValidationResults(results) {
+            const resultsDiv = document.getElementById('validationResults');
+            resultsDiv.style.display = 'block';
+            const table = document.getElementById('resultsTable');
+            table.innerHTML = '';
+
+            // Create table headers
+            const headers = ['Field', 'Value', 'Validation Result'];
+            const headerRow = table.insertRow();
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+
+            // Add rows for each field
+            for (const [field, data] of Object.entries(results)) {
+                const row = table.insertRow();
+                row.insertCell().textContent = field;
+                row.insertCell().textContent = data.value;
+                row.insertCell().textContent = data.result;
+            }
+        }
+
+        function clearValidationResults() {
+            const resultsDiv = document.getElementById('validationResults');
+            resultsDiv.style.display = 'none';
+            const table = document.getElementById('resultsTable');
+            table.innerHTML = '';
+        }
+
+        function clearAll() {
+            if (confirm('Do you want to clear the saved API key as well?')) {
+                clearApiKey();
+            }
+            localStorage.removeItem('curlCommand');
+            document.getElementById('curlInput').value = '';
+            document.getElementById('params').innerHTML = '';
+            document.getElementById('results').textContent = '';
+            document.getElementById('resultsDetails').open = false; // Auto-collapse results
+            document.getElementById('paramsDetails').open = false; // Collapse parameters section
+        }
+
+        function clearApiKey() {
+            localStorage.removeItem('openaiApiKey');
+            document.getElementById('apiKeyInput').value = '';
+            alert('API key cleared successfully!');
+        }
+    </script>
+</body>
+
+</html>
