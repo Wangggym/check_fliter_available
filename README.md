@@ -4,7 +4,7 @@
 
 The API Request Field Checker is a web-based tool designed to help developers and testers validate API responses and analyze the effects of different parameter values on API outputs. It provides an intuitive interface for parsing curl commands, sending API requests, and comparing results using AI-assisted analysis.
 
-<iframe src="https://htmlpreview.github.io/?https://github.com/Wangggym/check_fliter_available/blob/master/index.html" width="100%" height="500" frameborder="0"></iframe>
+You can view the live demo of the API Request Field Checker [here](https://htmlpreview.github.io/?https://github.com/Wangggym/check_fliter_available/blob/master/index.html).
 
 ## Features
 
