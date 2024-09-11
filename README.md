@@ -29,7 +29,7 @@ You can view the live demo of the API Request Field Checker [here](https://htmlp
 3. Click "Parse and Send" to extract parameters and headers, and automatically send the request.
 4. View the results in the expandable "Results" section.
 5. Select specific content from the results for AI analysis by clicking on the lines you want to include.
-6. Enter the field to validate and validation codes.
+6. Enter the field to validate and field values to test.
 7. Click "Generate AI Filter" to create a comparison function based on the selected content.
 8. Once the filter is generated, click "Execute Comparison" to perform validation tests.
 9. View the validation results in the table at the bottom of the page.
