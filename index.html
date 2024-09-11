@@ -26,10 +26,19 @@
             <button id="clearButton" onclick="clearAll()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Clear All</button>
         </div>
         
-        <details id="paramsDetails" class="mb-6">
-            <summary class="cursor-pointer">Request Parameters</summary>
-            <div id="params" class="mt-4"></div>
-        </details>
+        <div id="paramsContainer" class="mb-6 hidden">
+            <h3 class="text-xl font-bold mb-2">Request Parameters</h3>
+            <table id="paramsTable" class="w-full border-collapse border border-gray-300 text-sm">
+                <thead>
+                    <tr>
+                        <th class="border border-gray-300 px-2 py-1">Type</th>
+                        <th class="border border-gray-300 px-2 py-1">Key</th>
+                        <th class="border border-gray-300 px-2 py-1">Value</th>
+                    </tr>
+                </thead>
+                <tbody id="params"></tbody>
+            </table>
+        </div>
 
         <h2 class="text-2xl font-bold mb-4">Results:</h2>
         <details id="resultsDetails" class="mb-6">
@@ -93,8 +102,10 @@
             const curlInput = document.getElementById('curlInput').value;
             localStorage.setItem('curlCommand', curlInput);  // Save curl command
 
-            const paramsDiv = document.getElementById('params');
-            paramsDiv.innerHTML = '';
+            const paramsTable = document.getElementById('params');
+            const paramsContainer = document.getElementById('paramsContainer');
+            paramsTable.innerHTML = '';
+            paramsContainer.classList.add('hidden');
 
             // Parse the curl command
             const urlMatch = curlInput.match(/"([^"]+)"/);
@@ -113,43 +124,32 @@
                 headers[match[1]] = match[2];
             }
 
-            // Create input fields for URL parameters
+            // Create table rows for URL parameters
             for (let [key, value] of params) {
-                createParamInput(paramsDiv, 'param', key, value);
+                createParamInput(paramsTable, 'URL Param', key, value);
             }
 
-            // Create input fields for headers
+            // Create table rows for headers
             for (let [key, value] of Object.entries(headers)) {
-                createParamInput(paramsDiv, 'header', key, value);
+                createParamInput(paramsTable, 'Header', key, value);
             }
 
-            // Open the params details after parsing
-            document.getElementById('paramsDetails').open = true;
+            // Show the params container if there are any parameters
+            if (paramsTable.children.length > 0) {
+                paramsContainer.classList.remove('hidden');
+            }
 
             // Send the request immediately after parsing
             await sendRequest();
         }
 
         function createParamInput(container, type, key, value) {
-            const paramDiv = document.createElement('div');
-            paramDiv.className = 'param-input';
-            const inputId = `${type}-${key}`;
-            paramDiv.innerHTML = `
-                <input type="text" value="${key}" readonly>
-                <input type="text" value="${value}" id="${inputId}">
+            const row = container.insertRow();
+            row.innerHTML = `
+                <td class="border border-gray-300 px-2 py-1">${type}</td>
+                <td class="border border-gray-300 px-2 py-1">${key}</td>
+                <td class="border border-gray-300 px-2 py-1">${value}</td>
             `;
-            container.appendChild(paramDiv);
-
-            // Restore saved value
-            const savedValue = localStorage.getItem(inputId);
-            if (savedValue) {
-                document.getElementById(inputId).value = savedValue;
-            }
-
-            // Add event listener to save changes
-            document.getElementById(inputId).addEventListener('change', function () {
-                localStorage.setItem(inputId, this.value);
-            });
         }
 
         async function sendRequest() {
@@ -158,24 +158,22 @@
             if (!urlMatch) return;
 
             let url = new URL(urlMatch[1]);
-            let params = new URLSearchParams(url.search);
             let headers = {};
 
-            // Update URL parameters
-            for (let [key, value] of params) {
-                const inputValue = document.getElementById(`param-${key}`).value;
-                params.set(key, inputValue);
-            }
+            // Get parameters from the table
+            const paramRows = document.querySelectorAll('#params tr');
+            paramRows.forEach(row => {
+                const cells = row.cells;
+                const type = cells[0].textContent;
+                const key = cells[1].textContent;
+                const value = cells[2].textContent;
 
-            // Update headers
-            const headerMatches = curlInput.matchAll(/-H "([^:]+): ([^"]+)"/g);
-            for (const match of headerMatches) {
-                const key = match[1];
-                const inputValue = document.getElementById(`header-${key}`)?.value || match[2];
-                headers[key] = inputValue;
-            }
-
-            url.search = params.toString();
+                if (type === 'URL Param') {
+                    url.searchParams.set(key, value);
+                } else if (type === 'Header') {
+                    headers[key] = value;
+                }
+            });
 
             // Use CORS Anywhere proxy
             const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
@@ -521,21 +519,21 @@ Provide the comparison function as a string in your response. The function shoul
         }
 
         function clearAll() {
-            if (confirm('Do you want to clear the saved API key as well?')) {
-                clearApiKey();
-            }
             localStorage.removeItem('curlCommand');
             document.getElementById('curlInput').value = '';
             document.getElementById('params').innerHTML = '';
             document.getElementById('results').textContent = '';
             document.getElementById('resultsDetails').open = false; // Auto-collapse results
-            document.getElementById('paramsDetails').open = false; // Collapse parameters section
-        }
-
-        function clearApiKey() {
-            localStorage.removeItem('openaiApiKey');
-            document.getElementById('apiKeyInput').value = '';
-            alert('API key cleared successfully!');
+            document.getElementById('paramsContainer').classList.add('hidden'); // Hide parameters section
+            
+            // Clear other input fields except the API key
+            document.getElementById('fieldsToValidateInput').value = '';
+            document.getElementById('validationCodeInput').value = '';
+            document.getElementById('userInput').value = '';
+            
+            // Reset AI chat and validation results
+            document.getElementById('chatMessages').innerHTML = '';
+            clearValidationResults();
         }
     </script>
 </body>
