@@ -25,13 +25,12 @@ The API Request Field Checker is a web-based tool designed to help developers an
 ## How to Use
 
 1. Enter a curl command in the provided textarea.
-2. Click "Parse and Send" to extract parameters and headers.
-3. Modify parameters if needed and click "Send Request" to make the API call.
-4. View the results in the expandable "Results" section.
-5. Select specific content from the results for AI analysis.
-6. Enter your OpenAI API key, fields to validate, and validation codes.
-7. Click "Start AI Analysis" to generate a comparison function and perform validation tests.
-8. View the validation results in the table at the bottom of the page.
+2. Click "Parse and Send" to extract parameters and headers, and automatically send the request.
+3. View the results in the expandable "Results" section.
+4. Select specific content from the results for AI analysis by clicking on the lines you want to include.
+5. Enter your OpenAI API key, fields to validate, and validation codes.
+6. Click "Start AI Analysis" to generate a comparison function and perform validation tests.
+7. View the validation results in the table at the bottom of the page.
 
 ## Requirements
 
