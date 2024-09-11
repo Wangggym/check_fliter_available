@@ -114,7 +114,7 @@
     </div>
 
     <script>
-        // 页面加载时恢复保存的数据
+        // Page load event to restore saved data
         window.onload = function () {
             const savedCurl = localStorage.getItem('curlCommand');
             if (savedCurl) {
@@ -138,9 +138,9 @@
             }
         }
 
-        function parseAndSend() {
+        async function parseAndSend() {
             const curlInput = document.getElementById('curlInput').value;
-            localStorage.setItem('curlCommand', curlInput);  // 保存curl命令
+            localStorage.setItem('curlCommand', curlInput);  // Save curl command
 
             const paramsDiv = document.getElementById('params');
             paramsDiv.innerHTML = '';
@@ -172,14 +172,11 @@
                 createParamInput(paramsDiv, 'header', key, value);
             }
 
-            // Add a button to send the request
-            const sendButton = document.createElement('button');
-            sendButton.textContent = 'Send Request';
-            sendButton.onclick = sendRequest;
-            paramsDiv.appendChild(sendButton);
-
             // Open the params details after parsing
             document.getElementById('paramsDetails').open = true;
+
+            // Send the request immediately after parsing
+            await sendRequest();
         }
 
         function createParamInput(container, type, key, value) {
@@ -192,13 +189,13 @@
             `;
             container.appendChild(paramDiv);
 
-            // 恢复保存的值
+            // Restore saved value
             const savedValue = localStorage.getItem(inputId);
             if (savedValue) {
                 document.getElementById(inputId).value = savedValue;
             }
 
-            // 添加事件监听器以保存更改
+            // Add event listener to save changes
             document.getElementById(inputId).addEventListener('change', function () {
                 localStorage.setItem(inputId, this.value);
             });
@@ -229,13 +226,13 @@
 
             url.search = params.toString();
 
-            // 使用 CORS Anywhere 代理
+            // Use CORS Anywhere proxy
             const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
             const fullUrl = proxyUrl + url.toString();
 
-            const sendButton = document.querySelector('#params button');
-            sendButton.innerHTML = 'Sending... <span class="loading"></span>';
-            sendButton.disabled = true;
+            const parseAndSendButton = document.querySelector('button');
+            parseAndSendButton.innerHTML = 'Sending... <span class="loading"></span>';
+            parseAndSendButton.disabled = true;
 
             try {
                 const response = await fetch(fullUrl, {
@@ -250,14 +247,14 @@
                 document.getElementById('aiChat').style.display = 'block';
                 document.getElementById('apiKeyInput').value = localStorage.getItem('openaiApiKey') || '';
 
-                sendButton.innerHTML = 'Send Request';
-                sendButton.disabled = false;
+                parseAndSendButton.innerHTML = 'Parse and Send';
+                parseAndSendButton.disabled = false;
             } catch (error) {
                 document.getElementById('results').textContent = `Error: ${error.message}`;
                 console.error('Error:', error);
 
-                sendButton.innerHTML = 'Send Request';
-                sendButton.disabled = false;
+                parseAndSendButton.innerHTML = 'Parse and Send';
+                parseAndSendButton.disabled = false;
             }
         }
 
@@ -354,8 +351,7 @@
                         model: "gpt-3.5-turbo-0125",
                         response_format: { "type": "json_object" },
                         messages: [
-                            { role: "user", content: `Create a comparison function similar to the following example:
-
+                            { role: "user", content: `Create a comparison function similar to the following example and return it as a JSON object:
 (oldData, newData) => {
     const oldIds = oldData.data.businesses.map(business => business.id);
     const newIds = newData.data.businesses.map(business => business.id);
